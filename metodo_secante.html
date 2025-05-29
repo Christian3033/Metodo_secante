@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Método de la Secante</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+    }
+    .form-container {
+      background-color: rgba(255, 255, 255, 0.08);
+      padding: 30px;
+      border-radius: 15px;
+      width: 400px;
+      margin-bottom: 30px;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+    }
+    button {
+      background: linear-gradient(135deg, #00feba, #5b548a);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .mensaje {
+      background-color: #ffffff18;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    .resultado-proceso {
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 800px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<div class="form-container">
+  <h2>Método de la Secante</h2>
+  <input type="number" id="grado" min="1" placeholder="Grado de la función (Ej: 3)" oninput="validarGrado()">
+  <input type="text" id="funcion" placeholder="Ej: f(x) = 2x^3 - 11.7x^2 + 17.7x - 5" disabled>
+  <input type="number" id="x0" step="any" placeholder="Valor inicial x₀">
+  <input type="number" id="x1" step="any" placeholder="Valor inicial x₁">
+  <button onclick="calcularSecante()">Calcular</button>
+</div>
+
+<div id="mensajeRaiz"></div>
+<div id="procedimientoTexto" class="resultado-proceso"></div>
+
+<script>
+function validarGrado() {
+  const grado = parseInt(document.getElementById("grado").value);
+  const funcionInput = document.getElementById("funcion");
+  if (!isNaN(grado) && grado > 0) {
+    funcionInput.disabled = false;
+  } else {
+    funcionInput.disabled = true;
+    funcionInput.value = "";
+  }
+}
+
+function calcularSecante() {
+  const mensajeDiv = document.getElementById("mensajeRaiz");
+  const procedimientoDiv = document.getElementById("procedimientoTexto");
+  mensajeDiv.innerHTML = "";
+  procedimientoDiv.innerHTML = "";
+
+  let expresion = document.getElementById("funcion").value.trim();
+  let grado = parseInt(document.getElementById("grado").value);
+  let x0 = parseFloat(document.getElementById("x0").value);
+  let x1 = parseFloat(document.getElementById("x1").value);
+
+  if (isNaN(grado) || grado < 1) {
+    mensajeDiv.innerHTML = '<div class="mensaje">❌ Debes ingresar un grado válido de la función.</div>';
+    return;
+  }
+
+  if (!expresion) {
+    mensajeDiv.innerHTML = '<div class="mensaje">❌ Debes ingresar la función.</div>';
+    return;
+  }
+
+  expresion = expresion.replace(/^f\s*\(\s*x\s*\)\s*=\s*/i, "");
+  expresion = expresion.replace(/²/g, "^2").replace(/³/g, "^3");
+  expresion = expresion.replace(/(\d)(x)/g, "$1*$2").replace(/(\))x/g, "$1*x");
+
+  const exponenteRegex = /x\^([0-9]+)/g;
+  let maxExponente = 1;
+  let match;
+  while ((match = exponenteRegex.exec(expresion)) !== null) {
+    const exp = parseInt(match[1]);
+    if (exp > maxExponente) maxExponente = exp;
+  }
+  if (/x(?!\^)/.test(expresion)) {
+    maxExponente = Math.max(maxExponente, 1);
+  }
+
+  if (maxExponente !== grado) {
+    mensajeDiv.innerHTML = `<div class="mensaje">❌ El grado ingresado (${grado}) no coincide con el mayor exponente encontrado en la función (${maxExponente}).</div>`;
+    return;
+  }
+
+  const f = math.compile(expresion);
+  const fx0 = f.evaluate({ x: x0 });
+  const fx1 = f.evaluate({ x: x1 });
+
+  let mensaje = `
+    <div class="mensaje">
+      f(${x0}) = ${fx0.toFixed(4)}<br>
+      f(${x1}) = ${fx1.toFixed(4)}<br><br>
+  `;
+
+  if (fx0 * fx1 < 0) {
+    mensaje += "✅ <strong>Existe una raíz entre x₀ y x₁</strong> (signos opuestos)</div>";
+    mensajeDiv.innerHTML = mensaje;
+
+    const maxIter = 20;
+    const tolerancia = 0.00001;
+    let i = 0;
+    let error = 100;
+    let procedimiento = "";
+    let x2;
+
+    while (i < maxIter && error > tolerancia) {
+      const f_x0 = f.evaluate({ x: x0 });
+      const f_x1 = f.evaluate({ x: x1 });
+
+      x2 = x1 - (f_x1 * (x0 - x1)) / (f_x0 - f_x1);
+      error = Math.abs((x2 - x1) / x2) * 100;
+
+      const fx0_sust = expresion.replace(/x/g, `(${x0.toFixed(4)})`);
+      const fx1_sust = expresion.replace(/x/g, `(${x1.toFixed(4)})`);
+
+      procedimiento += `Iteración ${i + 1}:\n`;
+      procedimiento += `x0 = ${x0.toFixed(4)}, x1 = ${x1.toFixed(4)}\n`;
+      procedimiento += `Sustituciones:\n`;
+      procedimiento += `f(x0) = ${fx0_sust} = ${f_x0.toFixed(4)}\n`;
+      procedimiento += `f(x1) = ${fx1_sust} = ${f_x1.toFixed(4)}\n`;
+      procedimiento += `x2 = x1 - f(x1) * (x0 - x1) / (f(x0) - f(x1))\n`;
+      procedimiento += `    = ${x1.toFixed(4)} - (${f_x1.toFixed(4)} * (${x0.toFixed(4)} - ${x1.toFixed(4)})) / (${f_x0.toFixed(4)} - ${f_x1.toFixed(4)})\n`;
+      procedimiento += `    = ${x2.toFixed(4)}\n`;
+      procedimiento += `Error = |(${x2.toFixed(4)} - ${x1.toFixed(4)}) / ${x2.toFixed(4)}| * 100 = ${error.toFixed(4)}%\n\n`;
+
+      x0 = x1;
+      x1 = x2;
+      i++;
+    }
+
+    procedimiento += `🔚 Método finalizado en ${i} iteraciones. Aproximación de raíz: ${x2.toFixed(4)}\n`;
+    procedimientoDiv.innerText = procedimiento;
+
+  } else {
+    mensaje += "❌ <strong>No se garantiza una raíz</strong> entre x₀ y x₁ (no hay cambio de signo)</div>";
+    mensajeDiv.innerHTML = mensaje;
+  }
+}
+</script>
+
+</body>
+</html>
